@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildforge-api
+  namespace: buildforge
+  labels:
+    app: buildforge-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buildforge-api
+  template:
+    metadata:
+      labels:
+        app: buildforge-api
+    spec:
+      containers:
+        - name: api
+          image: buildforge-api:dev
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

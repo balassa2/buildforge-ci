@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: buildforge-api
+  namespace: buildforge
+  labels:
+    app: buildforge-api
+spec:
+  selector:
+    app: buildforge-api
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+  type: ClusterIP
