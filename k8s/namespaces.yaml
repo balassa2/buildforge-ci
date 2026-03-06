@@ -1,0 +1,28 @@
+# Three-namespace layout:
+#   buildforge            - Flask API + local dev registry
+#   buildforge-ci         - Jenkins controller + dynamic agent pods
+#   buildforge-monitoring - Prometheus, Grafana, Fluent Bit, Splunk
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: buildforge
+  labels:
+    app.kubernetes.io/part-of: buildforge-ci
+    purpose: application
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: buildforge-ci
+  labels:
+    app.kubernetes.io/part-of: buildforge-ci
+    purpose: ci-cd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: buildforge-monitoring
+  labels:
+    app.kubernetes.io/part-of: buildforge-ci
+    purpose: monitoring
