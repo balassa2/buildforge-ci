@@ -1,0 +1,126 @@
+# BuildForge CI -- Local development environment.
+#
+# Start:   docker compose up -d
+# Stop:    docker compose down
+# Logs:    docker compose logs -f api
+# Rebuild: docker compose up -d --build api
+#
+# Services:
+#   API        http://localhost:5050      Flask REST API
+#   Jenkins    http://localhost:8080      CI/CD controller (admin/admin)
+#   Grafana    http://localhost:3000      Dashboards (admin/admin)
+#   Prometheus http://localhost:9090      Metrics
+#   Registry   http://localhost:5001      Local Docker registry
+#
+# Note: port 5000 is avoided because macOS AirPlay Receiver uses it.
+# Note: Splunk is excluded because splunk/splunk is x86_64-only and
+#       does not run on Apple Silicon.
+
+services:
+  # ── Flask API ───────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "5050:5000"
+    environment:
+      - FLASK_DEBUG=1
+      - SECRET_KEY=docker-compose-dev-key
+      - JENKINS_URL=http://jenkins:8080
+      - DATABASE_URL=sqlite:///buildforge.db
+    volumes:
+      # Mount source for live reload during development
+      - ./api/app:/app/app:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Jenkins ─────────────────────────────────────────────────────────
+  jenkins:
+    image: jenkins/jenkins:lts
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+      - JENKINS_ADMIN_PASSWORD=admin
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./jenkins/config/jenkins-casc.yaml:/var/jenkins_home/casc_configs/jenkins-casc.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ── Prometheus ──────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker-compose/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Grafana ─────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.5.2
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker-compose/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./docker-compose/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./k8s/buildforge-monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Local Docker Registry ──────────────────────────────────────────
+  registry:
+    image: registry:2
+    ports:
+      # Port 5001 to avoid conflict with macOS AirPlay on port 5000
+      - "5001:5000"
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    volumes:
+      - registry_data:/var/lib/registry
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/v2/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
+  prometheus_data:
+  grafana_data:
+  registry_data:

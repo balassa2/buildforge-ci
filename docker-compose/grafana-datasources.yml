@@ -1,0 +1,10 @@
+# Grafana datasource provisioning for docker-compose local dev.
+# Points to the Prometheus service by compose service name.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

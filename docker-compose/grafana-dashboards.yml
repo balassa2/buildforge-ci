@@ -1,0 +1,12 @@
+# Grafana dashboard provisioning for docker-compose local dev.
+apiVersion: 1
+providers:
+  - name: "BuildForge"
+    orgId: 1
+    folder: "BuildForge"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
