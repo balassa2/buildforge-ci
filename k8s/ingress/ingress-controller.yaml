@@ -1,0 +1,21 @@
+# The nginx-ingress controller is installed from the official project manifest,
+# not from a custom YAML. This file documents the installation command.
+#
+# For kind clusters:
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+#
+# For standard clusters (cloud/bare-metal):
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+#
+# After installation, verify the controller is running:
+#   kubectl get pods -n ingress-nginx
+#
+# Kind-specific note:
+#   For ingress to work with kind, the cluster must be created with
+#   extraPortMappings for ports 80 and 443. If the cluster was created
+#   without these, you can port-forward to the ingress controller instead:
+#     kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
+#   Then access services at http://localhost:8080/<path>
+#
+# /etc/hosts entry required:
+#   127.0.0.1 buildforge.local

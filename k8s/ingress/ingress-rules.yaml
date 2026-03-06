@@ -1,0 +1,86 @@
+# Path-based routing for all BuildForge services under a single hostname.
+# Requires nginx-ingress controller to be installed in the cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: buildforge-ingress
+  namespace: buildforge
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: buildforge.local
+      http:
+        paths:
+          # Flask API: buildforge.local/api/* -> buildforge-api:5000/api/*
+          # No rewrite needed since Flask routes already start with /api/
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: buildforge-api
+                port:
+                  number: 5000
+          # Health check: buildforge.local/healthz -> buildforge-api:5000/healthz
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: buildforge-api
+                port:
+                  number: 5000
+---
+# Jenkins lives in a different namespace, so it needs its own Ingress resource.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+  namespace: buildforge-ci
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: buildforge.local
+      http:
+        paths:
+          # Jenkins UI: buildforge.local/jenkins/* -> jenkins:8080/*
+          - path: /jenkins(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: jenkins
+                port:
+                  number: 8080
+---
+# Grafana and Splunk live in the monitoring namespace.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: buildforge-monitoring
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: buildforge.local
+      http:
+        paths:
+          # Grafana: buildforge.local/grafana/* -> grafana:3000/*
+          - path: /grafana(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+          # Splunk: buildforge.local/splunk/* -> splunk:8000/*
+          - path: /splunk(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: splunk
+                port:
+                  number: 8000
