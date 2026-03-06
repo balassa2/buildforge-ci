@@ -1,0 +1,13 @@
+# Persistent storage for Splunk index data.
+# Survives pod restarts so indexed logs aren't lost during development.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: splunk-data
+  namespace: buildforge-monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

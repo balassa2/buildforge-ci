@@ -1,0 +1,41 @@
+# Splunk configuration files mounted at startup.
+# - inputs.conf: enables HEC on port 8088 with a known dev token
+# - saved-searches.conf: pre-built searches for build analysis
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: splunk-config
+  namespace: buildforge-monitoring
+data:
+  default.yml: |
+    splunk:
+      hec:
+        enable: true
+        port: 8088
+        ssl: false
+        token: "buildforge-hec-token"
+      indexes:
+        buildforge:
+          datatype: event
+          homePath: $SPLUNK_DB/buildforge/db
+          coldPath: $SPLUNK_DB/buildforge/colddb
+          thawedPath: $SPLUNK_DB/buildforge/thaweddb
+
+  savedsearches.conf: |
+    [Failed Builds Last 24h]
+    search = index=buildforge sourcetype="buildforge:pipeline" type="build_failed" | stats count by app, branch | sort -count
+    dispatch.earliest_time = -24h
+    dispatch.latest_time = now
+    description = Find all build failure events grouped by app and branch
+
+    [Build Log Trace]
+    search = index=buildforge build_id="$build_id$" | sort _time | table _time, type, app, branch, stage, result
+    dispatch.earliest_time = -7d
+    dispatch.latest_time = now
+    description = Trace a single build lifecycle across services by build ID
+
+    [Error Rate by Service]
+    search = index=buildforge level="ERROR" OR type="build_failed" | timechart span=1h count by service
+    dispatch.earliest_time = -24h
+    dispatch.latest_time = now
+    description = Count error-level log events per service over time

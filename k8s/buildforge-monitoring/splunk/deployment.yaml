@@ -1,0 +1,71 @@
+# NOTE: The splunk/splunk image is x86_64 only. On Apple Silicon (ARM64),
+# skip this deployment or run on an x86 cluster. The PVC, ConfigMap, Service,
+# and saved searches work regardless of architecture.
+# To deploy on x86: kubectl apply -f k8s/buildforge-monitoring/splunk/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: splunk
+  namespace: buildforge-monitoring
+  labels:
+    app: splunk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: splunk
+  template:
+    metadata:
+      labels:
+        app: splunk
+    spec:
+      containers:
+        - name: splunk
+          image: splunk/splunk:latest
+          imagePullPolicy: Never
+          ports:
+            - name: web
+              containerPort: 8000
+            - name: hec
+              containerPort: 8088
+          env:
+            - name: SPLUNK_START_ARGS
+              value: "--accept-license"
+            - name: SPLUNK_PASSWORD
+              value: "buildforge123"
+            - name: SPLUNK_LICENSE_URI
+              value: "Free"
+          volumeMounts:
+            - name: splunk-data
+              mountPath: /opt/splunk/var
+            - name: config
+              mountPath: /tmp/defaults/default.yml
+              subPath: default.yml
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 90
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+      volumes:
+        - name: splunk-data
+          persistentVolumeClaim:
+            claimName: splunk-data
+        - name: config
+          configMap:
+            name: splunk-config
