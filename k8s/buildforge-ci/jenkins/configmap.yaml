@@ -1,0 +1,72 @@
+# Mounts the JCasC YAML into the Jenkins pod so the Configuration-as-Code
+# plugin reads it on startup. The CASC_JENKINS_CONFIG env var in the
+# deployment points to this mount path.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-casc
+  namespace: buildforge-ci
+data:
+  jenkins-casc.yaml: |
+    jenkins:
+      systemMessage: "BuildForge CI - Managed by Configuration as Code"
+      numExecutors: 0
+      securityRealm:
+        local:
+          allowsSignup: false
+          users:
+            - id: "admin"
+              password: "${JENKINS_ADMIN_PASSWORD:-admin}"
+      authorizationStrategy:
+        loggedInUsersCanDoAnything:
+          allowAnonymousRead: false
+      clouds:
+        - kubernetes:
+            name: "kubernetes"
+            serverUrl: "https://kubernetes.default.svc"
+            namespace: "buildforge-ci"
+            jenkinsUrl: "http://jenkins.buildforge-ci:8080"
+            jenkinsTunnel: "jenkins-agent.buildforge-ci:50000"
+            podLabels:
+              - key: "jenkins"
+                value: "agent"
+            templates:
+              - name: "buildforge-agent"
+                label: "buildforge-agent"
+                serviceAccount: "jenkins"
+                containers:
+                  - name: "jnlp"
+                    image: "jenkins/inbound-agent:latest"
+                    workingDir: "/home/jenkins/agent"
+                    resourceRequestCpu: "200m"
+                    resourceRequestMemory: "256Mi"
+                    resourceLimitCpu: "500m"
+                    resourceLimitMemory: "512Mi"
+                  - name: "kaniko"
+                    image: "gcr.io/kaniko-project/executor:debug"
+                    workingDir: "/home/jenkins/agent"
+                    command: "/busybox/sleep"
+                    args: "infinity"
+                    resourceRequestCpu: "200m"
+                    resourceRequestMemory: "256Mi"
+                    resourceLimitCpu: "1"
+                    resourceLimitMemory: "1Gi"
+                volumes:
+                  - secretVolume:
+                      secretName: "docker-registry-credentials"
+                      mountPath: "/kaniko/.docker"
+                yamlMergeStrategy: "override"
+    unclassified:
+      globalLibraries:
+        libraries:
+          - name: "buildforge-shared-library"
+            defaultVersion: "main"
+            implicit: true
+            retriever:
+              modernSCM:
+                scm:
+                  git:
+                    remote: "https://github.com/balassa2/buildforge-ci.git"
+                    credentialsId: "github-token"
+      location:
+        url: "http://buildforge.local/jenkins/"

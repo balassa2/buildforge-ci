@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: buildforge-ci
+  labels:
+    app: jenkins
+spec:
+  selector:
+    app: jenkins
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: agent
+      port: 50000
+      targetPort: 50000
+  type: ClusterIP
+---
+# Separate service for agent connections so the JNLP tunnel endpoint
+# has a stable DNS name (jenkins-agent.buildforge-ci)
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-agent
+  namespace: buildforge-ci
+  labels:
+    app: jenkins
+spec:
+  selector:
+    app: jenkins
+  ports:
+    - name: agent
+      port: 50000
+      targetPort: 50000
+  type: ClusterIP

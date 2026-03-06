@@ -1,0 +1,44 @@
+# ServiceAccount for Jenkins in the buildforge-ci namespace.
+# The ClusterRole grants permissions to manage pods (agent spawning)
+# across namespaces and to read/update deployments for the deploy stage.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: buildforge-ci
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jenkins-controller
+rules:
+  # Agent pod lifecycle
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec", "pods/log"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  # Persistent volume claims for workspaces
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "create", "delete"]
+  # Deploy stage needs to update deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "update", "patch"]
+  # Secret reading for credentials
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jenkins-controller-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins-controller
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: buildforge-ci
